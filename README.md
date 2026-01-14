@@ -1,6 +1,6 @@
 # LightYomi WebUI
 
-React-based web interface for the LightYomi light novel reader.
+React-based web interface for the LightYomi light novel reader. It was created based of LNReader.
 
 ## Features
 
