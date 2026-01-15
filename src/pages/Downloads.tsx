@@ -263,7 +263,7 @@ export default function Downloads() {
     const completedCount = tasks.filter((t) => t.status === 'completed').length;
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 2, pb: 4 }}>
+        <Container maxWidth="xl" sx={{ mt: 2, pb: 4, px: { xs: 2, md: 4 } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h5" fontWeight={600}>
                     Downloads

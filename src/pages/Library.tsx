@@ -46,6 +46,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import NovelCard from '../components/NovelCard';
 import type { Novel } from '../components/NovelCard';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 interface Category {
     id: number;
@@ -202,28 +203,18 @@ export default function Library() {
         fetchLibrary();
     };
 
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
+    // Set toolbar content for the AppBar (must be before any conditional returns)
+    const { setToolbarContent } = useToolbar();
 
-    return (
-        <Container maxWidth="xl" sx={{ mt: 2, pb: 4 }}>
-            {/* Header Bar */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                <Typography variant="h5" sx={{ fontWeight: 600, flexGrow: 1 }}>
-                    Library
-                    <Chip
-                        label={filteredNovels.length}
-                        size="small"
-                        sx={{ ml: 1, bgcolor: 'primary.main', color: 'primary.contrastText' }}
-                    />
-                </Typography>
-
-                {/* Search */}
+    useEffect(() => {
+        if (loading) return;
+        const toolbarElements = (
+            <>
+                <Chip
+                    label={filteredNovels.length}
+                    size="small"
+                    sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}
+                />
                 <TextField
                     size="small"
                     placeholder="Search library..."
@@ -236,65 +227,31 @@ export default function Library() {
                             </InputAdornment>
                         ),
                     }}
-                    sx={{ width: 220 }}
+                    sx={{ width: 200, bgcolor: 'action.hover', borderRadius: 1, '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
                 />
-
-                {/* Sort */}
+                <Box sx={{ flexGrow: 1 }} />
                 <Tooltip title="Sort">
-                    <IconButton onClick={(e) => setSortAnchor(e.currentTarget)}>
+                    <IconButton color="inherit" onClick={(e) => setSortAnchor(e.currentTarget)}>
                         <SortIcon />
                     </IconButton>
                 </Tooltip>
-                <Menu
-                    anchorEl={sortAnchor}
-                    open={Boolean(sortAnchor)}
-                    onClose={() => setSortAnchor(null)}
-                >
-                    {(['name', 'lastRead', 'dateAdded', 'unread'] as SortOption[]).map((option) => (
-                        <MenuItem
-                            key={option}
-                            selected={sortBy === option}
-                            onClick={() => {
-                                if (sortBy === option) {
-                                    setSortAsc(!sortAsc);
-                                } else {
-                                    setSortBy(option);
-                                    setSortAsc(false);
-                                }
-                                setSortAnchor(null);
-                            }}
-                        >
-                            {option === 'name' && 'Title'}
-                            {option === 'lastRead' && 'Last Read'}
-                            {option === 'dateAdded' && 'Date Added'}
-                            {option === 'unread' && 'Unread Count'}
-                            {sortBy === option && (sortAsc ? ' ↑' : ' ↓')}
-                        </MenuItem>
-                    ))}
-                </Menu>
-
-                {/* Display Mode Toggle */}
                 <ToggleButtonGroup
                     value={displayMode}
                     exclusive
                     onChange={(_, value) => value && setDisplayMode(value)}
                     size="small"
+                    sx={{ '& .MuiToggleButton-root': { color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' } }}
                 >
                     <ToggleButton value="grid">
-                        <Tooltip title="Grid View">
-                            <GridViewIcon fontSize="small" />
-                        </Tooltip>
+                        <GridViewIcon fontSize="small" />
                     </ToggleButton>
                     <ToggleButton value="list">
-                        <Tooltip title="List View">
-                            <ViewListIcon fontSize="small" />
-                        </Tooltip>
+                        <ViewListIcon fontSize="small" />
                     </ToggleButton>
                 </ToggleButtonGroup>
-
-                {/* Selection Mode Toggle */}
                 <Tooltip title={selectionMode ? 'Exit Selection' : 'Select'}>
                     <IconButton
+                        color="inherit"
                         onClick={() => {
                             if (selectionMode) {
                                 clearSelection();
@@ -302,19 +259,59 @@ export default function Library() {
                                 setSelectionMode(true);
                             }
                         }}
-                        color={selectionMode ? 'primary' : 'default'}
                     >
                         <SelectAllIcon />
                     </IconButton>
                 </Tooltip>
-
-                {/* Refresh */}
                 <Tooltip title="Update Library">
-                    <IconButton onClick={handleRefresh}>
+                    <IconButton color="inherit" onClick={handleRefresh}>
                         <RefreshIcon />
                     </IconButton>
                 </Tooltip>
+            </>
+        );
+        setToolbarContent(toolbarElements);
+        return () => setToolbarContent(null);
+    }, [loading, filteredNovels.length, searchQuery, displayMode, selectionMode, sortAnchor]);
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+                <CircularProgress />
             </Box>
+        );
+    }
+
+    return (
+        <Container maxWidth="xl" sx={{ mt: 2, pb: 4, px: { xs: 2, md: 4 } }}>
+            {/* Sort Menu (needs to be in body for portal) */}
+            <Menu
+                anchorEl={sortAnchor}
+                open={Boolean(sortAnchor)}
+                onClose={() => setSortAnchor(null)}
+            >
+                {(['name', 'lastRead', 'dateAdded', 'unread'] as SortOption[]).map((option) => (
+                    <MenuItem
+                        key={option}
+                        selected={sortBy === option}
+                        onClick={() => {
+                            if (sortBy === option) {
+                                setSortAsc(!sortAsc);
+                            } else {
+                                setSortBy(option);
+                                setSortAsc(false);
+                            }
+                            setSortAnchor(null);
+                        }}
+                    >
+                        {option === 'name' && 'Title'}
+                        {option === 'lastRead' && 'Last Read'}
+                        {option === 'dateAdded' && 'Date Added'}
+                        {option === 'unread' && 'Unread Count'}
+                        {sortBy === option && (sortAsc ? ' ↑' : ' ↓')}
+                    </MenuItem>
+                ))}
+            </Menu>
 
             {/* Category Tabs */}
             {categories.length > 1 && (

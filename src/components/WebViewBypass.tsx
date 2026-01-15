@@ -2,7 +2,8 @@
  * WebView Cloudflare Bypass Component
  * 
  * Displays a site in an iframe/popup to let users manually solve Cloudflare challenges.
- * After solving, cookies are extracted and saved for future requests.
+ * After solving, cookies are saved for the specific plugin, and User-Agent is auto-extracted
+ * if not already set.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -77,9 +78,18 @@ export default function WebViewBypass({ open, onClose, url, pluginId, onSuccess 
     const handleBypassComplete = async () => {
         setStatus('success');
 
-        // Notify server to retry with updated cookies
         try {
-            await axios.post('/api/source/cloudflare-solved', { pluginId, url });
+            // Get the browser's User-Agent to save if Network UA is empty
+            const browserUA = navigator.userAgent;
+
+            // Notify server - it will save cookies for this plugin
+            // and User-Agent if the current setting is empty
+            await axios.post('/api/source/cloudflare-solved', {
+                pluginId,
+                url,
+                userAgent: browserUA
+            });
+
             onSuccess?.();
         } catch (e) {
             console.error('Failed to notify server:', e);
@@ -120,7 +130,7 @@ export default function WebViewBypass({ open, onClose, url, pluginId, onSuccess 
             }}
         >
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography variant="h6">Cloudflare Challenge</Typography>
+                <Typography variant="h6">Solve Challenge</Typography>
                 <IconButton onClick={onClose} size="small">
                     <CloseIcon />
                 </IconButton>
@@ -132,13 +142,13 @@ export default function WebViewBypass({ open, onClose, url, pluginId, onSuccess 
                             ✓ Challenge Completed!
                         </Typography>
                         <Typography color="text.secondary">
-                            Cookies saved. Retrying request...
+                            Settings saved. Retrying request...
                         </Typography>
                     </Box>
                 ) : mode === 'popup' ? (
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <Alert severity="info" sx={{ mb: 3 }}>
-                            A popup window has opened. Please complete the Cloudflare challenge there.
+                            A popup window has opened. Please complete any challenge (e.g., CAPTCHA) there.
                         </Alert>
                         <Typography variant="body1" gutterBottom>
                             After completing the challenge:

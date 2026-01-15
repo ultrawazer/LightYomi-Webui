@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Container, Typography, Box, Card, CardMedia, CardContent,
     Tabs, Tab, TextField, InputAdornment, IconButton, CircularProgress,
-    Button, Alert
+    Button, Alert, Badge, Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import axios from 'axios';
 import WebViewBypass from '../components/WebViewBypass';
+import { FilterDrawer } from '../components/filters';
+import type { Filters, FilterValues } from '../components/filters';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 interface NovelItem {
     path: string;
@@ -17,85 +20,243 @@ interface NovelItem {
     cover?: string;
 }
 
+interface PluginInfo {
+    id: string;
+    name: string;
+    site: string;
+    filters?: Filters;
+}
+
 export default function BrowseSource() {
     const { pluginId } = useParams();
     const navigate = useNavigate();
+    const { setToolbarContent, setPageTitle, setBackPath } = useToolbar();
+
+    // Core state
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [novels, setNovels] = useState<NovelItem[]>([]);
     const [page, setPage] = useState(1);
-    const [tab, setTab] = useState('latest');
+    const [hasMore, setHasMore] = useState(true);
+    const [tab, setTab] = useState('popular');
     const [searchQuery, setSearchQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
+
+    // Plugin info
+    const [pluginInfo, setPluginInfo] = useState<PluginInfo | null>(null);
+
+    // Filter state
+    const [showFilters, setShowFilters] = useState(false);
+    const [pluginFilters, setPluginFilters] = useState<Filters | null>(null);
+    const [filterValues, setFilterValues] = useState<FilterValues>({});
+    const [activeFilterCount, setActiveFilterCount] = useState(0);
+
+    // WebView bypass state
     const [showBypass, setShowBypass] = useState(false);
     const [bypassUrl, setBypassUrl] = useState('');
 
-    useEffect(() => {
-        fetchNovels();
-    }, [pluginId, tab, page]);
+    // Infinite scroll ref
+    const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    const fetchNovels = async () => {
+    // Load plugin info and filters on mount
+    useEffect(() => {
+        if (pluginId) {
+            loadPluginInfo();
+            loadPluginFilters();
+        }
+    }, [pluginId]);
+
+    // Set toolbar content with back button, title, and action icons
+    useEffect(() => {
+        setPageTitle(pluginInfo?.name || pluginId || 'Browse');
+        setBackPath('/browse'); // Enable back button to browse page
+        setToolbarContent(
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Tooltip title="Filters">
+                    <IconButton color="inherit" onClick={() => setShowFilters(true)}>
+                        <Badge badgeContent={activeFilterCount} color="error">
+                            <FilterListIcon />
+                        </Badge>
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title="Open in WebView">
+                    <IconButton color="inherit" onClick={() => setShowBypass(true)}>
+                        <OpenInNewIcon />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+        );
+        return () => {
+            setToolbarContent(null);
+            setPageTitle(null);
+            setBackPath(null);
+        };
+    }, [pluginInfo, pluginId, activeFilterCount, setToolbarContent, setPageTitle, setBackPath]);
+
+    // Fetch novels when tab, page, or filters change
+    useEffect(() => {
+        if (page === 1) {
+            setNovels([]);
+            fetchNovels(true);
+        } else {
+            fetchNovels(false);
+        }
+    }, [pluginId, tab, page, searchQuery]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && !loading && !loadingMore && hasMore) {
+                    setPage(p => p + 1);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [loading, loadingMore, hasMore]);
+
+    const loadPluginInfo = async () => {
+        try {
+            const res = await axios.get('/api/source/installed');
+            const plugin = res.data.find((p: any) => p.id === pluginId);
+            if (plugin) {
+                setPluginInfo(plugin);
+                setBypassUrl(plugin.site);
+            }
+        } catch (e) {
+            console.error('Failed to load plugin info', e);
+        }
+    };
+
+    const loadPluginFilters = async () => {
+        try {
+            const res = await axios.get(`/api/source/${pluginId}/filters`);
+            if (res.data?.filters) {
+                setPluginFilters(res.data.filters);
+                // Initialize filter values with defaults
+                const defaults: FilterValues = {};
+                Object.entries(res.data.filters).forEach(([key, filter]: [string, any]) => {
+                    defaults[key] = { type: filter.type, value: filter.value };
+                });
+                setFilterValues(defaults);
+            }
+        } catch (e) {
+            console.error('Failed to load plugin filters', e);
+        }
+    };
+
+    const fetchNovels = async (reset: boolean) => {
         if (!pluginId) return;
-        setLoading(true);
+
+        if (reset) {
+            setLoading(true);
+        } else {
+            setLoadingMore(true);
+        }
         setError(null);
+
         try {
             let url = `/api/source/${pluginId}/${tab}?page=${page}`;
+
+            // Add filters if set
+            if (Object.keys(filterValues).length > 0) {
+                url += `&filters=${encodeURIComponent(JSON.stringify(filterValues))}`;
+            }
+
+            if (tab === 'popular') {
+                url += `&showLatestNovels=false`;
+            }
+
             if (searchQuery) {
                 url = `/api/source/${pluginId}/search?query=${encodeURIComponent(searchQuery)}&page=${page}`;
             }
 
             const res = await axios.get(url);
-            setNovels(res.data);
+            const newNovels = res.data || [];
+
+            if (reset) {
+                setNovels(newNovels);
+            } else {
+                setNovels(prev => [...prev, ...newNovels]);
+            }
+
+            // Check if we have more pages
+            setHasMore(newNovels.length >= 20); // Assume 20 per page
+
         } catch (e: any) {
             console.error("Failed to fetch novels", e);
             const errorMsg = e.response?.data?.error || e.message || 'Failed to fetch novels';
             setError(errorMsg);
-            setNovels([]);
-
-            // Check if it's a Cloudflare error
-            if (errorMsg.toLowerCase().includes('cloudflare') || e.response?.status === 503) {
-                // Get the source URL from the plugin
-                try {
-                    const pluginRes = await axios.get('/api/source/installed');
-                    const plugin = pluginRes.data.find((p: any) => p.id === pluginId);
-                    if (plugin?.site) {
-                        setBypassUrl(plugin.site);
-                    }
-                } catch {
-                    // Fallback to a generic approach
-                }
-            }
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         setPage(1);
-        fetchNovels();
+    };
+
+    const handleTabChange = (newTab: string) => {
+        setTab(newTab);
+        setPage(1);
+        setSearchQuery('');
+    };
+
+    const handleApplyFilters = () => {
+        // Count active filters (non-default values)
+        let count = 0;
+        if (pluginFilters) {
+            Object.entries(filterValues).forEach(([key, val]: [string, any]) => {
+                const defaultVal = pluginFilters[key]?.value;
+                if (JSON.stringify(val.value) !== JSON.stringify(defaultVal)) {
+                    count++;
+                }
+            });
+        }
+        setActiveFilterCount(count);
+        setPage(1);
+    };
+
+    const handleResetFilters = () => {
+        if (pluginFilters) {
+            const defaults: FilterValues = {};
+            Object.entries(pluginFilters).forEach(([key, filter]: [string, any]) => {
+                defaults[key] = { type: filter.type, value: filter.value };
+            });
+            setFilterValues(defaults);
+        }
+        setActiveFilterCount(0);
     };
 
     const handleBypassSuccess = () => {
         setShowBypass(false);
-        fetchNovels(); // Retry
+        setPage(1);
     };
 
     return (
-        <Container sx={{ mt: 2, mb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <IconButton onClick={() => navigate('/browse')} sx={{ mr: 1 }}>
-                    <ArrowBackIcon />
-                </IconButton>
-                <Typography variant="h5">{pluginId}</Typography>
-            </Box>
+        <Container maxWidth="xl" sx={{ mt: 2, mb: 4, px: { xs: 2, md: 4 } }}>
 
+            {/* Tabs */}
             <Box sx={{ mb: 2 }}>
-                <Tabs value={tab} onChange={(_, v) => { setTab(v); setPage(1); setSearchQuery(''); }} aria-label="source tabs">
+                <Tabs
+                    value={tab}
+                    onChange={(_, v) => handleTabChange(v)}
+                    aria-label="source tabs"
+                >
                     <Tab label="Popular" value="popular" />
                     <Tab label="Latest" value="latest" />
                 </Tabs>
             </Box>
 
+            {/* Search */}
             <Box sx={{ mb: 3 }} component="form" onSubmit={handleSearch}>
                 <TextField
                     fullWidth
@@ -113,32 +274,27 @@ export default function BrowseSource() {
                 />
             </Box>
 
+            {/* Error Alert */}
             {error && (
                 <Alert
                     severity="error"
                     sx={{ mb: 2 }}
                     action={
-                        error.toLowerCase().includes('cloudflare') || error.toLowerCase().includes('internal') ? (
-                            <Button
-                                color="inherit"
-                                size="small"
-                                startIcon={<OpenInNewIcon />}
-                                onClick={() => setShowBypass(true)}
-                            >
-                                Open WebView
-                            </Button>
-                        ) : undefined
+                        <Button
+                            color="inherit"
+                            size="small"
+                            startIcon={<OpenInNewIcon />}
+                            onClick={() => setShowBypass(true)}
+                        >
+                            Open WebView
+                        </Button>
                     }
                 >
                     {error}
-                    {(error.toLowerCase().includes('cloudflare') || error.toLowerCase().includes('internal')) && (
-                        <Typography variant="caption" display="block">
-                            This source may be protected by Cloudflare. Click "Open WebView" to solve the challenge.
-                        </Typography>
-                    )}
                 </Alert>
             )}
 
+            {/* Novels Grid */}
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                     <CircularProgress />
@@ -149,8 +305,8 @@ export default function BrowseSource() {
                     gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)', md: 'repeat(6, 1fr)' },
                     gap: 2
                 }}>
-                    {novels.map((novel) => (
-                        <Box key={novel.path}>
+                    {novels.map((novel, index) => (
+                        <Box key={`${novel.path}-${index}`}>
                             <Card
                                 sx={{ height: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
                                 onClick={() => navigate(`/novel/source/${pluginId}/${encodeURIComponent(novel.path)}`)}
@@ -171,12 +327,49 @@ export default function BrowseSource() {
                             </Card>
                         </Box>
                     ))}
-                    {novels.length === 0 && !loading && !error && (
-                        <Typography sx={{ mt: 2, ml: 2, gridColumn: '1 / -1' }}>No novels found.</Typography>
+                </Box>
+            )}
+
+            {/* No results */}
+            {novels.length === 0 && !loading && !error && (
+                <Typography sx={{ mt: 2, textAlign: 'center' }}>
+                    No novels found.
+                </Typography>
+            )}
+
+            {/* Load more indicator / Infinite scroll trigger */}
+            {hasMore && !loading && novels.length > 0 && (
+                <Box ref={loadMoreRef} sx={{ display: 'flex', justifyContent: 'center', mt: 4, py: 2 }}>
+                    {loadingMore ? (
+                        <CircularProgress size={30} />
+                    ) : (
+                        <Typography variant="body2" color="text.secondary">
+                            Scroll for more...
+                        </Typography>
                     )}
                 </Box>
             )}
 
+            {/* End of results */}
+            {!hasMore && novels.length > 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
+                    End of results
+                </Typography>
+            )}
+
+            {/* Filter Drawer */}
+            <FilterDrawer
+                open={showFilters}
+                onClose={() => setShowFilters(false)}
+                pluginId={pluginId || ''}
+                filters={pluginFilters}
+                values={filterValues}
+                onChange={setFilterValues}
+                onApply={handleApplyFilters}
+                onReset={handleResetFilters}
+            />
+
+            {/* WebView Bypass */}
             <WebViewBypass
                 open={showBypass}
                 onClose={() => setShowBypass(false)}
@@ -187,4 +380,3 @@ export default function BrowseSource() {
         </Container>
     );
 }
-

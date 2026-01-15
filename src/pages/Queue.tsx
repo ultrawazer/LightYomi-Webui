@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Container, Typography, Box, List, ListItem, ListItemText, LinearProgress, Paper, Button } from '@mui/material';
 import axios from 'axios';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 interface QueueItem {
     id: string;
@@ -43,14 +44,28 @@ export default function Queue() {
         }
     };
 
+    // Set page title and toolbar for AppBar
+    const { setToolbarContent, setPageTitle } = useToolbar();
+
+    useEffect(() => {
+        setPageTitle('Task Queue');
+        const toolbarElements = queue.length > 0 ? (
+            <>
+                <Box sx={{ flexGrow: 1 }} />
+                <Button color="inherit" variant="outlined" onClick={handleStop} sx={{ borderColor: 'rgba(255,255,255,0.3)' }}>
+                    Stop All
+                </Button>
+            </>
+        ) : null;
+        setToolbarContent(toolbarElements);
+        return () => {
+            setToolbarContent(null);
+            setPageTitle(null);
+        };
+    }, [queue.length]);
+
     return (
-        <Container maxWidth="md" sx={{ mt: 2, mb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h4">Task Queue</Typography>
-                {queue.length > 0 && (
-                    <Button color="error" variant="outlined" onClick={handleStop}>Stop All</Button>
-                )}
-            </Box>
+        <Container maxWidth="xl" sx={{ mt: 2, mb: 4, px: { xs: 2, md: 4 } }}>
 
             <Paper variant="outlined">
                 <List>

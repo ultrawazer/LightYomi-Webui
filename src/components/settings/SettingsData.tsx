@@ -4,7 +4,7 @@
  * Features:
  * - Backup to JSON/ZIP with all data
  * - Restore from backup
- * - Import from LnReader mobile backup
+ * - Import from LightYomi mobile backup
  * - EPUB export for novels
  * - Clear cache and cookies
  * - Advanced settings (User Agent, storage mode)
@@ -51,7 +51,6 @@ interface Novel {
 
 export default function SettingsData() {
     const [autoBackupFreq, setAutoBackupFreq] = useState(localStorage.getItem('backup_freq') || 'weekly');
-    const [userAgent, setUserAgent] = useState(localStorage.getItem('user_agent') || '');
     const [storageMode, setStorageMode] = useState('file');
 
     // EPUB Export Dialog
@@ -148,12 +147,12 @@ export default function SettingsData() {
                 const content = event.target?.result as string;
                 const mobileData = JSON.parse(content);
 
-                // LnReader mobile backup format detection
+                // LightYomi mobile backup format detection
                 if (mobileData.novels || mobileData.library) {
                     await axios.post('/api/library/import-mobile', mobileData);
-                    alert('LnReader mobile backup imported successfully!');
+                    alert('LightYomi mobile backup imported successfully!');
                 } else {
-                    alert('Unrecognized LnReader backup format');
+                    alert('Unrecognized LightYomi backup format');
                 }
             } catch (err) {
                 alert('Import failed');
@@ -225,29 +224,12 @@ export default function SettingsData() {
         }
     };
 
-    const handleClearCookies = () => {
-        document.cookie.split(';').forEach((c) => {
-            document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
-        });
-        alert('Cookies cleared');
-    };
-
     const handleStorageModeChange = async (mode: string) => {
         setStorageMode(mode);
         try {
             await axios.post('/api/settings/storage.mode', { value: mode });
         } catch (e) {
             console.error('Failed to save storage mode:', e);
-        }
-    };
-
-    const handleSaveUA = async () => {
-        localStorage.setItem('user_agent', userAgent);
-        try {
-            await axios.post('/api/settings/network.userAgent', { value: userAgent });
-            alert('User Agent saved');
-        } catch (e) {
-            alert('User Agent saved (Client-side only)');
         }
     };
 
@@ -279,7 +261,7 @@ export default function SettingsData() {
                     </Button>
                 </Box>
 
-                <FormControl fullWidth size="small" sx={{ maxWidth: 300 }}>
+                <FormControl fullWidth size="small">
                     <InputLabel>Auto Backup Frequency</InputLabel>
                     <Select
                         value={autoBackupFreq}
@@ -305,7 +287,7 @@ export default function SettingsData() {
 
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                     <Button variant="outlined" startIcon={<UploadIcon />} component="label">
-                        Import LnReader Mobile Backup
+                        Import LightYomi Mobile Backup
                         <input type="file" hidden accept=".json,.zip" onChange={handleLnReaderImport} />
                     </Button>
                     <Button
@@ -323,7 +305,7 @@ export default function SettingsData() {
             {/* Storage */}
             <Typography variant="h6" gutterBottom>Storage</Typography>
             <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                <FormControl fullWidth size="small" sx={{ maxWidth: 300, mb: 2 }}>
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                     <InputLabel>Chapter Storage Mode</InputLabel>
                     <Select
                         value={storageMode}
@@ -345,31 +327,6 @@ export default function SettingsData() {
                     onClick={handleClearCache}
                 >
                     Clear Downloaded Chapters
-                </Button>
-            </Paper>
-
-            <Divider sx={{ my: 3 }} />
-
-            {/* Advanced */}
-            <Typography variant="h6" gutterBottom>Advanced</Typography>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-                <TextField
-                    fullWidth
-                    label="User Agent"
-                    placeholder="Mozilla/5.0..."
-                    value={userAgent}
-                    onChange={(e) => setUserAgent(e.target.value)}
-                    helperText="Override the User-Agent string for network requests"
-                    sx={{ mb: 2 }}
-                />
-                <Button onClick={handleSaveUA} variant="outlined" size="small" sx={{ mb: 3 }}>
-                    Save User Agent
-                </Button>
-
-                <Divider sx={{ mb: 2 }} />
-
-                <Button color="error" onClick={handleClearCookies}>
-                    Clear Cookies
                 </Button>
             </Paper>
 
@@ -432,6 +389,6 @@ export default function SettingsData() {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Box>
+        </Box >
     );
 }

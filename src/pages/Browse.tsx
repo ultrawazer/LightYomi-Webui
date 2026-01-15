@@ -47,6 +47,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LanguageIcon from '@mui/icons-material/Language';
 import axios from 'axios';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 interface Plugin {
     id: string;
@@ -118,7 +119,7 @@ export default function Browse() {
 
     const fetchRepositories = async () => {
         try {
-            const res = await axios.get('/api/source/repositories');
+            const res = await axios.get('/api/source/repos');
             setRepositories(res.data || []);
         } catch (e) {
             console.error('Failed to fetch repositories:', e);
@@ -135,10 +136,21 @@ export default function Browse() {
         }
     };
 
+    const handleUninstall = async (plugin: Plugin) => {
+        if (!confirm(`Uninstall ${plugin.name}?`)) return;
+        try {
+            await axios.post('/api/source/uninstall', plugin);
+            fetchInstalled();
+        } catch (e) {
+            console.error('Failed to uninstall plugin:', e);
+            alert('Failed to uninstall plugin');
+        }
+    };
+
     const handleAddRepo = async () => {
         if (!newRepoUrl.trim()) return;
         try {
-            await axios.post('/api/source/repositories', { url: newRepoUrl.trim() });
+            await axios.post('/api/source/repos', { url: newRepoUrl.trim() });
             setNewRepoUrl('');
             setRepoDialogOpen(false);
             fetchRepositories();
@@ -151,7 +163,7 @@ export default function Browse() {
 
     const handleRemoveRepo = async (repoId: number) => {
         try {
-            await axios.delete(`/api/source/repositories/${repoId}`);
+            await axios.delete(`/api/source/repos/${repoId}`);
             fetchRepositories();
             fetchAvailable();
         } catch (e) {
@@ -188,19 +200,26 @@ export default function Browse() {
         !isInstalled(p.id)
     );
 
-    return (
-        <Container maxWidth="xl" sx={{ mt: 2, pb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h5" fontWeight={600}>
-                    Browse
-                </Typography>
+    // Set toolbar content for AppBar
+    const { setToolbarContent } = useToolbar();
+
+    useEffect(() => {
+        const toolbarElements = (
+            <>
+                <Box sx={{ flexGrow: 1 }} />
                 <Tooltip title="Refresh">
-                    <IconButton onClick={() => { fetchInstalled(); fetchAvailable(); }}>
+                    <IconButton color="inherit" onClick={() => { fetchInstalled(); fetchAvailable(); }}>
                         <RefreshIcon />
                     </IconButton>
                 </Tooltip>
-            </Box>
+            </>
+        );
+        setToolbarContent(toolbarElements);
+        return () => setToolbarContent(null);
+    }, []);
 
+    return (
+        <Container maxWidth="xl" sx={{ mt: 2, pb: 4, px: { xs: 2, md: 4 } }}>
             <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Tab label="Sources" />
                 <Tab label="Global Search" />
@@ -242,8 +261,8 @@ export default function Browse() {
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)', md: 'repeat(5, 1fr)', lg: 'repeat(6, 1fr)' }, gap: 2 }}>
                             {filteredInstalled.map((plugin) => (
                                 <Box key={plugin.id}>
-                                    <Card sx={{ height: '100%' }}>
-                                        <CardActionArea onClick={() => navigate(`/browse/${plugin.id}`)}>
+                                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        <CardActionArea onClick={() => navigate(`/browse/${plugin.id}`)} sx={{ flex: 1 }}>
                                             <CardMedia
                                                 component="img"
                                                 height="80"
@@ -260,6 +279,20 @@ export default function Browse() {
                                                 </Typography>
                                             </CardContent>
                                         </CardActionArea>
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 0.5, borderTop: 1, borderColor: 'divider' }}>
+                                            <Tooltip title="Uninstall">
+                                                <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleUninstall(plugin);
+                                                    }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     </Card>
                                 </Box>
                             ))}
@@ -340,108 +373,113 @@ export default function Browse() {
                         ))
                     )}
                 </>
-            )}
+            )
+            }
 
             {/* Extensions Tab */}
-            {tab === 2 && (
-                <>
-                    <TextField
-                        fullWidth
-                        size="small"
-                        placeholder="Search available extensions..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
-                        }}
-                        sx={{ mb: 3 }}
-                    />
+            {
+                tab === 2 && (
+                    <>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Search available extensions..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ mb: 3 }}
+                        />
 
-                    {filteredAvailable.length === 0 ? (
-                        <Paper sx={{ p: 4, textAlign: 'center' }}>
-                            <DownloadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-                            <Typography color="text.secondary">
-                                {searchQuery ? 'No matching extensions found.' : 'All available extensions are already installed.'}
-                            </Typography>
-                        </Paper>
-                    ) : (
-                        <List>
-                            {filteredAvailable.map((plugin) => (
-                                <Paper key={plugin.id || plugin.url} sx={{ mb: 1 }}>
-                                    <ListItem>
-                                        <Box
-                                            component="img"
-                                            src={plugin.iconUrl || '/api/image-proxy?url=https://via.placeholder.com/40'}
-                                            sx={{ width: 40, height: 40, mr: 2, borderRadius: 1 }}
-                                        />
-                                        <ListItemText
-                                            primary={plugin.name}
-                                            secondary={`${plugin.lang || 'EN'} • ${plugin.url || plugin.site}`}
-                                        />
-                                        <ListItemSecondaryAction>
-                                            {isInstalled(plugin.id) ? (
-                                                <Chip icon={<CheckCircleIcon />} label="Installed" size="small" color="success" />
-                                            ) : (
-                                                <Button
-                                                    variant="contained"
-                                                    size="small"
-                                                    startIcon={<DownloadIcon />}
-                                                    onClick={() => handleInstall(plugin)}
-                                                >
-                                                    Install
-                                                </Button>
-                                            )}
-                                        </ListItemSecondaryAction>
-                                    </ListItem>
-                                </Paper>
-                            ))}
-                        </List>
-                    )}
-                </>
-            )}
+                        {filteredAvailable.length === 0 ? (
+                            <Paper sx={{ p: 4, textAlign: 'center' }}>
+                                <DownloadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                                <Typography color="text.secondary">
+                                    {searchQuery ? 'No matching extensions found.' : 'All available extensions are already installed.'}
+                                </Typography>
+                            </Paper>
+                        ) : (
+                            <List>
+                                {filteredAvailable.map((plugin) => (
+                                    <Paper key={plugin.id || plugin.url} sx={{ mb: 1 }}>
+                                        <ListItem>
+                                            <Box
+                                                component="img"
+                                                src={plugin.iconUrl || '/api/image-proxy?url=https://via.placeholder.com/40'}
+                                                sx={{ width: 40, height: 40, mr: 2, borderRadius: 1 }}
+                                            />
+                                            <ListItemText
+                                                primary={plugin.name}
+                                                secondary={`${plugin.lang || 'EN'} • ${plugin.url || plugin.site}`}
+                                            />
+                                            <ListItemSecondaryAction>
+                                                {isInstalled(plugin.id) ? (
+                                                    <Chip icon={<CheckCircleIcon />} label="Installed" size="small" color="success" />
+                                                ) : (
+                                                    <Button
+                                                        variant="contained"
+                                                        size="small"
+                                                        startIcon={<DownloadIcon />}
+                                                        onClick={() => handleInstall(plugin)}
+                                                    >
+                                                        Install
+                                                    </Button>
+                                                )}
+                                            </ListItemSecondaryAction>
+                                        </ListItem>
+                                    </Paper>
+                                ))}
+                            </List>
+                        )}
+                    </>
+                )
+            }
 
             {/* Repositories Tab */}
-            {tab === 3 && (
-                <>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                        <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
-                            onClick={() => setRepoDialogOpen(true)}
-                        >
-                            Add Repository
-                        </Button>
-                    </Box>
+            {
+                tab === 3 && (
+                    <>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => setRepoDialogOpen(true)}
+                            >
+                                Add Repository
+                            </Button>
+                        </Box>
 
-                    {repositories.length === 0 ? (
-                        <Alert severity="info">
-                            No custom repositories added. The default LnReader plugin repository is always available.
-                        </Alert>
-                    ) : (
-                        <List>
-                            {repositories.map((repo) => (
-                                <Paper key={repo.id} sx={{ mb: 1 }}>
-                                    <ListItem>
-                                        <ListItemText
-                                            primary={repo.name || 'Custom Repository'}
-                                            secondary={repo.url}
-                                        />
-                                        <ListItemSecondaryAction>
-                                            <IconButton color="error" onClick={() => handleRemoveRepo(repo.id)}>
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </ListItemSecondaryAction>
-                                    </ListItem>
-                                </Paper>
-                            ))}
-                        </List>
-                    )}
-                </>
-            )}
+                        {repositories.length === 0 ? (
+                            <Alert severity="info">
+                                No custom repositories added. The default LightYomi plugin repository is always available.
+                            </Alert>
+                        ) : (
+                            <List>
+                                {repositories.map((repo) => (
+                                    <Paper key={repo.id} sx={{ mb: 1 }}>
+                                        <ListItem>
+                                            <ListItemText
+                                                primary={repo.name || 'Custom Repository'}
+                                                secondary={repo.url}
+                                            />
+                                            <ListItemSecondaryAction>
+                                                <IconButton color="error" onClick={() => handleRemoveRepo(repo.id)}>
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </ListItemSecondaryAction>
+                                        </ListItem>
+                                    </Paper>
+                                ))}
+                            </List>
+                        )}
+                    </>
+                )
+            }
 
             {/* Add Repository Dialog */}
             <Dialog open={repoDialogOpen} onClose={() => setRepoDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -463,6 +501,6 @@ export default function Browse() {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Container>
+        </Container >
     );
 }

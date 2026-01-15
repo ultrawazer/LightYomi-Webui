@@ -31,6 +31,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import HistoryIcon from '@mui/icons-material/History';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 interface HistoryItem {
     id: number;
@@ -123,6 +124,31 @@ export default function HistoryPage() {
         return date.toLocaleDateString();
     };
 
+    // Set toolbar content for AppBar (must be before conditional returns)
+    const { setToolbarContent } = useToolbar();
+
+    useEffect(() => {
+        if (loading) return;
+        const toolbarElements = (
+            <>
+                <Chip label={history.length} size="small" sx={{ bgcolor: 'action.hover' }} />
+                <Box sx={{ flexGrow: 1 }} />
+                {history.length > 0 && (
+                    <Button
+                        startIcon={<DeleteSweepIcon />}
+                        color="inherit"
+                        onClick={handleClearAll}
+                        sx={{ color: 'error.main' }}
+                    >
+                        Clear All
+                    </Button>
+                )}
+            </>
+        );
+        setToolbarContent(toolbarElements);
+        return () => setToolbarContent(null);
+    }, [loading, history.length]);
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
@@ -132,22 +158,7 @@ export default function HistoryPage() {
     }
 
     return (
-        <Container maxWidth="md" sx={{ mt: 2, pb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h5" fontWeight={600}>
-                    History
-                    <Chip label={history.length} size="small" sx={{ ml: 1 }} />
-                </Typography>
-                {history.length > 0 && (
-                    <Button
-                        startIcon={<DeleteSweepIcon />}
-                        color="error"
-                        onClick={handleClearAll}
-                    >
-                        Clear All
-                    </Button>
-                )}
-            </Box>
+        <Container maxWidth="xl" sx={{ mt: 2, pb: 4, px: { xs: 2, md: 4 } }}>
 
             {history.length === 0 ? (
                 <Paper sx={{ p: 4, textAlign: 'center' }}>

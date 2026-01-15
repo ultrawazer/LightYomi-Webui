@@ -372,7 +372,7 @@ export default function Novel() {
                 </Box>
             </Stack>
 
-            <Container sx={{ mt: 4 }}>
+            <Container maxWidth="xl" sx={{ mt: 4, px: { xs: 2, md: 4 } }}>
                 <Typography variant="h5" gutterBottom>Synopsis</Typography>
                 <Paper sx={{ p: 3, bgcolor: 'action.hover', borderRadius: 2 }}>
                     <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
@@ -381,7 +381,7 @@ export default function Novel() {
                 </Paper>
             </Container>
 
-            <Container sx={{ mt: 4 }}>
+            <Container maxWidth="xl" sx={{ mt: 4, px: { xs: 2, md: 4 } }}>
                 <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6">Chapters ({chapters.length})</Typography>
                     {/* Selection Mode Toolbar */}

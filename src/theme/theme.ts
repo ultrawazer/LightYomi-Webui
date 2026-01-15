@@ -1,5 +1,5 @@
 /**
- * Suwayomi-inspired Design System for LnReader Web
+ * Suwayomi-inspired Design System for LightYomi Web
  * 
  * Design Principles:
  * - Dark gray backgrounds (not pure black) to reduce eye strain

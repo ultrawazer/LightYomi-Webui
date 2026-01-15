@@ -23,7 +23,7 @@ export default function Stats() {
     if (!stats) return <Box p={4}><Typography>Loading...</Typography></Box>;
 
     return (
-        <Container maxWidth="md" sx={{ mt: 2, mb: 4 }}>
+        <Container maxWidth="xl" sx={{ mt: 2, mb: 4, px: { xs: 2, md: 4 } }}>
             <Typography variant="h4" gutterBottom>Statistics</Typography>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>

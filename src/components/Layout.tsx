@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, AppBar, Toolbar, Typography, IconButton, CssBaseline, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
 import ExploreIcon from '@mui/icons-material/Explore';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -9,6 +10,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import QueueIcon from '@mui/icons-material/Queue';
 import EqualizerIcon from '@mui/icons-material/Equalizer';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 const drawerWidth = 240;
 
@@ -16,6 +18,7 @@ export default function Layout() {
     const [mobileOpen, setMobileOpen] = React.useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const { toolbarContent, pageTitle, backPath } = useToolbar();
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -31,11 +34,14 @@ export default function Layout() {
         { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
     ];
 
+    // Use custom page title if provided, otherwise use menu item text
+    const currentTitle = pageTitle || menuItems.find(item => item.path === location.pathname)?.text || 'LightYomi';
+
     const drawer = (
         <div>
             <Toolbar>
                 <Typography variant="h6" noWrap component="div">
-                    LnReader
+                    LightYomi
                 </Typography>
             </Toolbar>
             <List>
@@ -67,7 +73,7 @@ export default function Layout() {
                     ml: { sm: `${drawerWidth}px` },
                 }}
             >
-                <Toolbar>
+                <Toolbar sx={{ gap: 2 }}>
                     <IconButton
                         color="inherit"
                         aria-label="open drawer"
@@ -77,9 +83,26 @@ export default function Layout() {
                     >
                         <MenuIcon />
                     </IconButton>
-                    <Typography variant="h6" noWrap component="div">
-                        {menuItems.find(item => item.path === location.pathname)?.text || 'LnReader'}
+                    {/* Back button when backPath is set */}
+                    {backPath && (
+                        <IconButton
+                            color="inherit"
+                            edge="start"
+                            onClick={() => navigate(backPath)}
+                            sx={{ mr: 1 }}
+                        >
+                            <ArrowBackIcon />
+                        </IconButton>
+                    )}
+                    <Typography variant="h6" noWrap component="div" sx={{ flexShrink: 0 }}>
+                        {currentTitle}
                     </Typography>
+                    {/* Page-specific toolbar content */}
+                    {toolbarContent && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1 }}>
+                            {toolbarContent}
+                        </Box>
+                    )}
                 </Toolbar>
             </AppBar>
             <Box
@@ -114,10 +137,25 @@ export default function Layout() {
             </Box>
             <Box
                 component="main"
-                sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+                sx={{
+                    flexGrow: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: { sm: `calc(100% - ${drawerWidth}px)` },
+                    height: '100vh',
+                    overflow: 'hidden',
+                }}
             >
-                <Toolbar />
-                <Outlet />
+                <Toolbar /> {/* Spacer for fixed AppBar */}
+                <Box sx={{
+                    flex: 1,
+                    overflow: 'auto',
+                    p: 3,
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}>
+                    <Outlet />
+                </Box>
             </Box>
         </Box>
     );

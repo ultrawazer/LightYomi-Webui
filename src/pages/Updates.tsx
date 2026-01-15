@@ -34,6 +34,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useToolbar } from '../contexts/ToolbarContext';
 
 interface UpdateItem {
     novelId: number;
@@ -185,6 +186,43 @@ export default function Updates() {
 
     const totalNewChapters = updates.reduce((sum, u) => sum + (u.chapters?.length || 1), 0);
 
+    // Set toolbar content for AppBar (must be before any conditional returns)
+    const { setToolbarContent } = useToolbar();
+
+    useEffect(() => {
+        if (loading) return;
+        const toolbarElements = (
+            <>
+                <Chip
+                    size="small"
+                    icon={<Box sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: wsConnected ? 'success.main' : 'error.main',
+                        ml: 1
+                    }} />}
+                    label={wsConnected ? 'Live' : 'Offline'}
+                    variant="outlined"
+                    sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' }}
+                />
+                <Box sx={{ flexGrow: 1 }} />
+                <Tooltip title="Check for updates">
+                    <IconButton color="inherit" onClick={handleRefresh} disabled={updating}>
+                        {updating ? <CircularProgress size={24} color="inherit" /> : <RefreshIcon />}
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title="Clear all">
+                    <IconButton color="inherit" onClick={handleClear}>
+                        <DeleteSweepIcon />
+                    </IconButton>
+                </Tooltip>
+            </>
+        );
+        setToolbarContent(toolbarElements);
+        return () => setToolbarContent(null);
+    }, [loading, wsConnected, updating]);
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
@@ -194,44 +232,7 @@ export default function Updates() {
     }
 
     return (
-        <Container maxWidth="md" sx={{ mt: 2, pb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h5" fontWeight={600}>
-                    Updates
-                    {totalNewChapters > 0 && (
-                        <Chip
-                            label={`${totalNewChapters} new`}
-                            size="small"
-                            color="primary"
-                            sx={{ ml: 1 }}
-                        />
-                    )}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Chip
-                        size="small"
-                        icon={<Box sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor: wsConnected ? 'success.main' : 'error.main',
-                            ml: 1
-                        }} />}
-                        label={wsConnected ? 'Live' : 'Offline'}
-                        variant="outlined"
-                    />
-                    <Tooltip title="Check for updates">
-                        <IconButton onClick={handleRefresh} disabled={updating} color="primary">
-                            {updating ? <CircularProgress size={24} /> : <RefreshIcon />}
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Clear all">
-                        <IconButton onClick={handleClear} color="error">
-                            <DeleteSweepIcon />
-                        </IconButton>
-                    </Tooltip>
-                </Box>
-            </Box>
+        <Container maxWidth="xl" sx={{ mt: 2, pb: 4, px: { xs: 2, md: 4 } }}>
 
             {/* Settings */}
             <Paper sx={{ p: 2, mb: 2 }}>

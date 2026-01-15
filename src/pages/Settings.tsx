@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Container, Typography, Tabs, Tab, Box, Paper, FormControl, InputLabel, Select, MenuItem, Divider } from '@mui/material';
+import { Tabs, Tab, Box, Paper, FormControl, InputLabel, Select, MenuItem, Divider, Typography } from '@mui/material';
 import TrackerSettings from '../components/TrackerSettings';
 import SettingsRepositories from '../components/settings/SettingsRepositories';
 import SettingsLibrary from '../components/settings/SettingsLibrary';
@@ -16,21 +16,20 @@ interface TabPanelProps {
 function TabPanel(props: TabPanelProps) {
     const { children, value, index, ...other } = props;
 
+    if (value !== index) {
+        return null;
+    }
+
     return (
-        <div
+        <Box
             role="tabpanel"
-            hidden={value !== index}
             id={`settings-tabpanel-${index}`}
             aria-labelledby={`settings-tab-${index}`}
             {...other}
-            style={{ flexGrow: 1 }}
+            sx={{ width: '100%' }}
         >
-            {value === index && (
-                <Box sx={{ p: 3 }}>
-                    {children}
-                </Box>
-            )}
-        </div>
+            {children}
+        </Box>
     );
 }
 
@@ -52,58 +51,85 @@ export default function Settings() {
     };
 
     return (
-        <Container maxWidth={false} sx={{ mt: 2, px: { xs: 2, md: 4 } }}>
-            <Typography variant="h4" gutterBottom>Settings</Typography>
-            <Paper variant="outlined" sx={{ display: 'flex', minHeight: 'calc(100vh - 180px)' }}>
-                <Box sx={{ borderRight: 1, borderColor: 'divider', width: '220px', flexShrink: 0 }}>
-                    <Tabs
-                        orientation="vertical"
-                        variant="scrollable"
-                        value={value}
-                        onChange={handleChange}
-                        aria-label="Settings tabs"
-                        sx={{ borderRight: 1, borderColor: 'divider', height: '100%' }}
-                    >
-                        <Tab label="General" />
-                        <Tab label="Repositories" />
-                        <Tab label="Library" />
-                        <Tab label="Reader" />
-                        <Tab label="Trackers" />
-                        <Tab label="Network" />
-                        <Tab label="Data & Advanced" />
-                    </Tabs>
-                </Box>
+        <Box
+            sx={{
+                display: 'grid',
+                gridTemplateColumns: '200px 1fr',
+                alignItems: 'stretch',
+                justifyItems: 'stretch',
+                flex: 1,
+                width: '100%',
+                minHeight: 0,
+                overflow: 'hidden',
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper',
+            }}
+        >
+            {/* Sidebar */}
+            <Box
+                sx={{
+                    borderRight: 1,
+                    borderColor: 'divider',
+                    overflowY: 'auto',
+                }}
+            >
+                <Tabs
+                    orientation="vertical"
+                    variant="scrollable"
+                    value={value}
+                    onChange={handleChange}
+                    aria-label="Settings tabs"
+                >
+                    <Tab label="General" />
+                    <Tab label="Repositories" />
+                    <Tab label="Library" />
+                    <Tab label="Reader" />
+                    <Tab label="Trackers" />
+                    <Tab label="Network" />
+                    <Tab label="Data & Advanced" />
+                </Tabs>
+            </Box>
 
-                {/* General Settings */}
+            {/* Content area */}
+            <Box
+                sx={{
+                    overflow: 'auto',
+                    p: 3,
+                }}
+            >
                 <TabPanel value={value} index={0}>
-                    <Typography variant="h6" gutterBottom>Appearance</Typography>
-                    <FormControl fullWidth size="small" sx={{ mb: 2, maxWidth: 400 }}>
-                        <InputLabel>App Theme</InputLabel>
-                        <Select
-                            value={theme}
-                            label="App Theme"
-                            onChange={(e) => handleThemeChange(e.target.value)}
-                        >
-                            <MenuItem value="light">Light</MenuItem>
-                            <MenuItem value="dark">Dark</MenuItem>
-                            <MenuItem value="midnight">Midnight Dusk</MenuItem>
-                        </Select>
-                    </FormControl>
+                    <Paper variant="outlined" sx={{ p: 3, width: '100%' }}>
+                        <Typography variant="h6" gutterBottom>Appearance</Typography>
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                            <InputLabel>App Theme</InputLabel>
+                            <Select
+                                value={theme}
+                                label="App Theme"
+                                onChange={(e) => handleThemeChange(e.target.value)}
+                            >
+                                <MenuItem value="light">Light</MenuItem>
+                                <MenuItem value="dark">Dark</MenuItem>
+                                <MenuItem value="midnight">Midnight Dusk</MenuItem>
+                            </Select>
+                        </FormControl>
 
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="h6" gutterBottom>Language</Typography>
-                    <FormControl fullWidth size="small" sx={{ mb: 2, maxWidth: 400 }}>
-                        <InputLabel>Language</InputLabel>
-                        <Select
-                            value={language}
-                            label="Language"
-                            onChange={(e) => setLanguage(e.target.value)}
-                        >
-                            <MenuItem value="en">English</MenuItem>
-                            <MenuItem value="es">Spanish</MenuItem>
-                            <MenuItem value="fr">French</MenuItem>
-                        </Select>
-                    </FormControl>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" gutterBottom>Language</Typography>
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                            <InputLabel>Language</InputLabel>
+                            <Select
+                                value={language}
+                                label="Language"
+                                onChange={(e) => setLanguage(e.target.value)}
+                            >
+                                <MenuItem value="en">English</MenuItem>
+                                <MenuItem value="es">Spanish</MenuItem>
+                                <MenuItem value="fr">French</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Paper>
                 </TabPanel>
 
                 <TabPanel value={value} index={1}>
@@ -129,8 +155,7 @@ export default function Settings() {
                 <TabPanel value={value} index={6}>
                     <SettingsData />
                 </TabPanel>
-
-            </Paper>
-        </Container>
+            </Box>
+        </Box>
     );
 }

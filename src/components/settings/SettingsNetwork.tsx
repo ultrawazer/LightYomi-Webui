@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Box, TextField, Button, Typography, Paper, Alert } from '@mui/material';
 import axios from 'axios';
 
+const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 export default function SettingsNetwork() {
     const [userAgent, setUserAgent] = useState('');
-    const [cookie, setCookie] = useState('');
     const [flareSolverrUrl, setFlareSolverrUrl] = useState('');
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
@@ -15,14 +16,15 @@ export default function SettingsNetwork() {
 
     const fetchSettings = async () => {
         try {
-            const uaRes = await axios.get('/api/settings/string/USER_AGENT');
-            if (uaRes.data?.value) setUserAgent(uaRes.data.value);
+            const uaRes = await axios.get('/api/settings/USER_AGENT');
+            if (uaRes.data?.value) {
+                setUserAgent(uaRes.data.value);
+            }
 
-            const cookieRes = await axios.get('/api/settings/string/COOKIE_HEADER');
-            if (cookieRes.data?.value) setCookie(cookieRes.data.value);
-
-            const fsRes = await axios.get('/api/settings/string/FLARESOLVERR_URL');
-            if (fsRes.data?.value) setFlareSolverrUrl(fsRes.data.value);
+            const fsRes = await axios.get('/api/settings/FLARESOLVERR_URL');
+            if (fsRes.data?.value) {
+                setFlareSolverrUrl(fsRes.data.value);
+            }
 
         } catch (e) {
             console.error('Failed to load network settings', e);
@@ -31,9 +33,10 @@ export default function SettingsNetwork() {
 
     const handleSave = async () => {
         try {
-            await axios.post('/api/settings/string/USER_AGENT', { value: userAgent });
-            await axios.post('/api/settings/string/COOKIE_HEADER', { value: cookie });
-            await axios.post('/api/settings/string/FLARESOLVERR_URL', { value: flareSolverrUrl });
+            await axios.post('/api/settings/USER_AGENT', { value: userAgent || DEFAULT_USER_AGENT });
+            if (flareSolverrUrl) {
+                await axios.post('/api/settings/FLARESOLVERR_URL', { value: flareSolverrUrl });
+            }
             setSaved(true);
             setError('');
             setTimeout(() => setSaved(false), 3000);
@@ -47,8 +50,7 @@ export default function SettingsNetwork() {
         <Box>
             <Typography variant="h6" gutterBottom>Network Settings</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configure network headers to bypass protections (e.g., Cloudflare).
-                You can extract these from your browser (Network Tab &rarr; request headers).
+                Configure network settings for accessing protected sources.
             </Typography>
 
             <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
@@ -58,29 +60,18 @@ export default function SettingsNetwork() {
                     variant="outlined"
                     value={userAgent}
                     onChange={(e) => setUserAgent(e.target.value)}
-                    helperText="Browser User-Agent string"
+                    placeholder={DEFAULT_USER_AGENT}
+                    helperText="Browser User-Agent string. Leave empty to use default Chrome user-agent."
                     sx={{ mb: 3 }}
                 />
 
                 <TextField
                     fullWidth
-                    label="Cookie Header"
-                    variant="outlined"
-                    value={cookie}
-                    onChange={(e) => setCookie(e.target.value)}
-                    helperText="Full Cookie string (e.g., 'cf_clearance=...; other_cookie=...')"
-                    multiline
-                    minRows={3}
-                    sx={{ mb: 3 }}
-                />
-
-                <TextField
-                    fullWidth
-                    label="FlareSolverr URL"
+                    label="FlareSolverr URL (Optional)"
                     variant="outlined"
                     value={flareSolverrUrl}
                     onChange={(e) => setFlareSolverrUrl(e.target.value)}
-                    helperText="URL of your FlareSolverr instance (e.g. http://localhost:8191)"
+                    helperText="Optional: URL of your FlareSolverr instance for automatic Cloudflare bypass (e.g. http://localhost:8191)"
                     placeholder="http://localhost:8191"
                     sx={{ mb: 3 }}
                 />
@@ -128,6 +119,14 @@ export default function SettingsNetwork() {
                 </Box>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                     Popup is more reliable. Iframe may be blocked by some sites.
+                </Typography>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 3, mt: 3 }}>
+                <Typography variant="subtitle1" gutterBottom>About Cookies</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Cookies are automatically managed per-plugin. When you complete a Cloudflare challenge
+                    using the WebView bypass, the cookies are saved specifically for that source.
                 </Typography>
             </Paper>
         </Box>
