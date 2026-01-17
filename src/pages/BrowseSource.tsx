@@ -306,26 +306,59 @@ export default function BrowseSource() {
                     gap: 2
                 }}>
                     {novels.map((novel, index) => (
-                        <Box key={`${novel.path}-${index}`}>
-                            <Card
-                                sx={{ height: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
-                                onClick={() => navigate(`/novel/source/${pluginId}/${encodeURIComponent(novel.path)}`)}
-                            >
-                                <CardMedia
+                        <Card
+                            key={`${novel.path}-${index}`}
+                            sx={{ cursor: 'pointer', borderRadius: 2, overflow: 'hidden' }}
+                            onClick={() => navigate(`/novel/source/${pluginId}/${encodeURIComponent(novel.path)}`)}
+                        >
+                            {/* Padding-top trick for 2:3 aspect ratio (150% = 3/2) */}
+                            <Box sx={{ position: 'relative', pt: '150%' }}>
+                                <Box
                                     component="img"
-                                    image={novel.cover?.startsWith('http')
+                                    src={novel.cover?.startsWith('http')
                                         ? `/api/image-proxy?url=${encodeURIComponent(novel.cover)}`
                                         : novel.cover || ''}
                                     alt={novel.title}
-                                    sx={{ aspectRatio: '2/3', objectFit: 'cover' }}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover',
+                                    }}
                                 />
-                                <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                                    <Typography variant="body2" noWrap title={novel.title}>
+                                {/* Title overlay with gradient */}
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                                        p: 1,
+                                        pt: 4,
+                                    }}
+                                >
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: 'white',
+                                            fontWeight: 500,
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden',
+                                            lineHeight: 1.2,
+                                            textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                                        }}
+                                        title={novel.title}
+                                    >
                                         {novel.title}
                                     </Typography>
-                                </CardContent>
-                            </Card>
-                        </Box>
+                                </Box>
+                            </Box>
+                        </Card>
                     ))}
                 </Box>
             )}

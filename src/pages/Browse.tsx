@@ -9,7 +9,7 @@
  * - Suwayomi-style UI
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Container,
@@ -38,6 +38,9 @@ import {
     Tooltip,
     CircularProgress,
     Alert,
+    FormControl,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -86,6 +89,19 @@ export default function Browse() {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [searching, setSearching] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    // Language filter state
+    const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
+
+    // Extract unique languages from plugins
+    const availableLanguages = useMemo(() => {
+        const allPlugins = [...installedPlugins, ...availablePlugins];
+        const langSet = new Set<string>();
+        allPlugins.forEach(p => {
+            if (p.lang) langSet.add(p.lang);
+        });
+        return Array.from(langSet).sort();
+    }, [installedPlugins, availablePlugins]);
 
     // Dialog states
     const [repoDialogOpen, setRepoDialogOpen] = useState(false);
@@ -191,13 +207,15 @@ export default function Browse() {
     };
 
     const filteredInstalled = installedPlugins.filter((p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.site.toLowerCase().includes(searchQuery.toLowerCase())
+        (p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.site.toLowerCase().includes(searchQuery.toLowerCase())) &&
+        (selectedLanguage === 'all' || p.lang === selectedLanguage)
     );
 
     const filteredAvailable = availablePlugins.filter((p) =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !isInstalled(p.id)
+        !isInstalled(p.id) &&
+        (selectedLanguage === 'all' || p.lang === selectedLanguage)
     );
 
     // Set toolbar content for AppBar
@@ -206,6 +224,25 @@ export default function Browse() {
     useEffect(() => {
         const toolbarElements = (
             <>
+                {/* Language Filter */}
+                <FormControl size="small" sx={{ minWidth: 100, mr: 1 }}>
+                    <Select
+                        value={selectedLanguage}
+                        onChange={(e) => setSelectedLanguage(e.target.value)}
+                        sx={{
+                            color: 'inherit',
+                            '.MuiSelect-icon': { color: 'inherit' },
+                            '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                        }}
+                        displayEmpty
+                    >
+                        <MenuItem value="all">All Languages</MenuItem>
+                        {availableLanguages.map(lang => (
+                            <MenuItem key={lang} value={lang}>{lang.toUpperCase()}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
                 <Box sx={{ flexGrow: 1 }} />
                 <Tooltip title="Refresh">
                     <IconButton color="inherit" onClick={() => { fetchInstalled(); fetchAvailable(); }}>
@@ -216,7 +253,7 @@ export default function Browse() {
         );
         setToolbarContent(toolbarElements);
         return () => setToolbarContent(null);
-    }, []);
+    }, [selectedLanguage, availableLanguages]);
 
     return (
         <Container maxWidth="xl" sx={{ mt: 2, pb: 4, px: { xs: 2, md: 4 } }}>
